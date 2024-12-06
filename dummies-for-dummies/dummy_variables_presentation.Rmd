@@ -1,0 +1,319 @@
+---
+title: "Dummy Variables for Dummies"
+author: "Evgenia Olimpieva"
+date: "02/25/2020"
+output: beamer_presentation
+header-includes:
+- \usetheme{default}
+- \setbeamertemplate{frametitle}{\color{gray}\textbf{\small\insertframetitle}}
+- \usepackage{avant}
+- \usecolortheme{dove}
+- \usepackage{movie15}
+---
+
+```{r setup, include=FALSE}
+library(broom)
+library(tidyverse)
+library(stargazer)
+library(AER)
+data(CASchools)
+
+# compute STR and append it to CASchools
+CASchools$STR <- CASchools$students/CASchools$teachers 
+
+# compute TestScore and append it to CASchools
+CASchools$score <- (CASchools$read + CASchools$math)/2  
+```
+
+# Continuous Independent Variable
+
+>- So far we have only seen models with continuous independent variables. 
+
+>- Continuous (and discrete) variables are easiest to interpret
+
+>- $\mbox{Monthly Household Expense} = \beta_{0} + \textcolor{orange}{\beta_{1}}* \mbox{Num of Kids} + ... + \epsilon$
+
+>- We iterpret them in terms of the \textcolor{orange}{slope} (change in run corresponding to a change in the rise)
+
+
+# Dummy Variables in a Regression
+
+>- However, not all variables are interpreted in terms of the slope.
+
+>- We interpret the coefficient of a dummy variable in the regression in terms of a difference between groups.
+
+>- Before we unpack that, let's review what dummy variables are! 
+
+>- Examples? 
+
+# Indicator Variables
+
+>- Dummy variable = Indicator variable
+
+>- Takes values 0 or 1. 
+
+>- It indicates presence (1) or absence (0) of a certain quality.
+
+
+# Indicator variables
+
+
+$$
+D = \left\{
+    \begin{array}{ll}
+        1 & \mbox{Property Present } \\
+        0 & \mbox{Property Absent }
+    \end{array}
+\right.
+$$
+
+# Indicator variables
+
+$$
+D = \left\{
+    \begin{array}{ll}
+        1 & \mbox{Female } \\
+        0 & \mbox{Male}
+    \end{array}
+\right.
+$$
+
+# Creating an Indicator Variable
+
+>- Let's create an indicator variable!
+
+>- We will use variable "English" and create a dummy variable "High Percent English Learners" or \textcolor{orange}{HiEL}. 
+
+>- \textcolor{orange}{HiEL} will take a value of 1 when there is a high percent of English learners in a school and  0 when it is low.  
+
+# Creating an Indicator Variable
+
+Formally: 
+
+$$
+\mbox{HiEL} = \left\{
+    \begin{array}{ll}
+        1 & \mbox{enlglish} \geq 10 \\
+        0 & \mbox{enlglish} < 10
+    \end{array}
+\right.
+$$
+
+# Creating an Indicator Variable in R
+
+We know how to do that in R! 
+
+```{r}
+#create a dummy variable from variable `english`
+CASchools$HiEL <- ifelse(CASchools$english >= 10, 1, 0)
+
+#check your work
+table(CASchools$HiEL)
+
+```
+
+# Model with an Indicator Variable Only 
+
+$$\hat{\text{Score}} = \hat{\beta_0} + \hat{\beta_1}\overbrace{\text{HiEL}}^{Dummy} + \epsilon$$
+
+# Model with an Indicator Variable Only 
+
+
+```{r echo=FALSE}
+gd <- CASchools %>% group_by(HiEL)%>%summarize(score = mean(score))%>%mutate(score=round(score))
+
+ggplot(CASchools, aes(as.factor(HiEL), score))+
+    geom_point()+
+    geom_point(data = gd, aes(as.factor(HiEL), score, color = as.factor(score)), size = 5)+
+    labs(color = "Group Avg Score")+
+    scale_x_discrete(labels = c("HiEL = 0 \n (Low Percent EL)","HiEL = 1 \n (High Percent EL)"), name = "")+
+    theme_minimal()
+    
+```
+
+# Interpreting Models with an Indicator Variable Only 
+
+$$\text{Score} = \hat{\beta_0} + \hat{\beta_1}\text{HiEL} + \epsilon$$
+
+- For dummy-only model, it is not useful to think of $\hat{\beta_1}$ in terms of a slope
+
+- $E(Y | HiEL = 0) = \hat{\beta_0}$
+
+- $E(Y | HiEL = 1) = \hat{\beta_0} + \hat{\beta_1}$
+
+- Thus, $\beta_1$ is the difference in  _group specific expectations_
+
+# Interpreting Models with an Indicator Variable Only 
+
+```{r include=F}
+mod <- lm(score ~HiEL, data=CASchools)
+```
+
+```{r results='asis', echo = FALSE}
+stargazer(mod, header=F, font.size = "tiny", title = "Comparing Group Average Test Scores")
+```
+
+# Interpreting Models with an Indicator Variable Only 
+
+```{r echo=FALSE}
+ggplot(CASchools, aes(as.factor(HiEL), score))+
+    geom_point()+
+    geom_point(data = gd, aes(as.factor(HiEL), score, color = as.factor(score)), size = 5)+
+    labs(color = "Group Avg Score")+
+    scale_x_discrete(labels = c("HiEL = 0 \n (Low Percent EL)","HiEL = 1 \n (High Percent EL)"), name = "")+
+    theme_minimal()
+```
+
+# Indicator and Continuous Variable Model
+
+>- What if we added to our dummy-only regression a continous variable? 
+
+>- $Y= \beta_0+ \beta_{X}*\overbrace{X}^{Continuous} +\beta_{D}*\overbrace{D}^{Dummy} + \epsilon$
+
+>- We will get something that is called a **parallel slopes model**, which you have seen on DataCamp. 
+
+
+# Model with and Indicator variable
+
+Let's add to our previous model a continous STR variable: 
+
+$$\hat{\text{Score}} = \hat{\beta_0}  + \hat{\beta_1}*\overbrace{\text{HiEL}}^{Dummy} + \hat{\beta_2}*\overbrace{\text{STR}}^{Continuous }$$ 
+
+
+
+# Model with and Indicator variable
+
+Let's add to our previous model a continous STR variable: 
+
+$$\hat{\text{Score}} = \hat{\beta_0}  + \hat{\beta_1}*\overbrace{\text{HiEL}}^{Dummy} + \hat{\beta_2}*\overbrace{\text{STR}}^{Continuous }$$ 
+
+
+**What happens when HiEL= 0? What happens when HiEL=1?**
+
+# Parallel Slopes
+
+- By virtue of including the dummy and a continous variable, we created **two parallel slope models**, one for each group.
+
+- One, for \textcolor{red}{HiEL = 1}, in which $\hat\beta_1$ gets added to the intercept $\beta_0$
+
+$$\hat{\text{Score}} = (\hat{\beta_0}  + \hat{\beta_1}) + \hat{\beta_2}*\text{STR}$$ 
+
+
+- And another one for \textcolor{red}{HiEL = 0}, where $\hat\beta_1$ dissappears as it is multiplied by 0: 
+
+$$\hat{\text{Score}} = \hat{\beta_0} + \hat{\beta_2}*\text{STR}$$ 
+
+# Visualizing Indicator Variables in a Regression
+
+```{r include=FALSE}
+model_indicator <- lm(score ~ HiEL + STR, data= CASchools)
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=F}
+ggplot(CASchools, aes(STR, score)) + 
+    geom_jitter()+
+    geom_line(data = augment(model_indicator), aes(y = .fitted, color = as.factor(HiEL)))+
+    labs(color = "HiEL")+
+    theme_minimal()
+
+```
+
+
+# Formally
+
+$$Y= \beta_0+ \beta_{D}*\overbrace{\textcolor{red}{D}}^{\textcolor{red}{indicator}} + \beta_{X}*X + \epsilon$$
+
+- If there is an indicator variable, our model essentially contains two models (one for each group): one for when D = 1, and another one for when D=0  
+
+- When $\textcolor{red}{D=0} \rightarrow Y= \beta_0 + \beta_{X}*X + \epsilon$. The coefficient for D is essentially added to the intercept (which is what shifts the line up and down).
+
+- When $\textcolor{red}{D=1} \rightarrow Y= (\beta_0+\beta_{D}) + \beta_{X}*X + \epsilon$
+
+
+# Interpretation
+
+```{r size = 'tiny', results='asis', echo = FALSE}
+stargazer(model_indicator, header=FALSE, 
+          font.size = "tiny", title = "Regression Results")
+```
+
+# Interpretation 
+
+>- Interpreting $\hat{\beta_1} = -19.5$: On average, we expect the students in schools with High Percent English Learners to score 19.5 points __lower__ on their test scores than students in school with Low Percent English Learners 
+
+>- Interpreting the intercept for \textcolor{red}{HiEL = 0}: "On average, when student to teacher ratio is zero, we expect students in schools with low number of english learners to have a test score around \textcolor{red}{692.4}" 
+
+>- Interpreting the intercept for \textcolor{blue}{HiEL = 1}: "On average, when student to teacher ratio is zero, we expect students in schools with high number of english learners to have a test score around \textcolor{blue}{692.361-19.533= 672.8}"
+
+>- The statistical significance of $\beta_1$ coefficient for `HiEL` in this case means that the difference between two groups is statistically significant. 
+
+# Example Continued
+
+Now, let's create a variable, which is the inverse of `HiEL` and which takes 1 when the school has less than 10 percent English learners and 0 otherwise.  
+
+$$
+\mbox{LowEL} = \left\{
+    \begin{array}{ll}
+        1 & \mbox{enlgish} < 10 \\
+        0 & \mbox{english} \geq 10
+    \end{array}
+\right.
+$$
+
+```{r}
+#create a dummy variable from variable `english`
+CASchools$LowEL <- ifelse(CASchools$english < 10, 1, 0)
+
+#check your work
+table(CASchools$LowEL)
+```
+
+# Model with `LowEL`
+
+$$\hat{\text{Score}} = \hat{\beta_0}  + \hat{\beta_1}* \text{LowEL} + \hat{\beta_2}*\text{STR}$$ 
+
+We will run the same model as before, just replacing `HiEL` with `LowEL`
+
+```{r}
+model_indicator_low <- lm(score ~ LowEL + STR, 
+                          data = CASchools)
+```
+
+# Compare the two models
+
+The two models below are __identical__, despite the fact that that 1) intercepts are different 2) the sign of coefficients for `HiEL` with `LowEL` is reversed. Why? 
+
+```{r results='asis', message=FALSE, echo=FALSE}
+stargazer(model_indicator, model_indicator_low, 
+          header=FALSE, font.size = "tiny", title="Two Dummies Walked Into a Bar...")
+```
+
+
+# Beware of the Dummy Variable Trap! 
+
+>- We can never include both `HiEL` and `LowEL` because the two variables are \textcolor{red}{perfectly collinear}! 
+
+>- Lack of perfect collinearity is one of the key assumptions in linear models and we will go over it in more detail in our class on assumptions. 
+
+>- However, an intuitive way to understand perfect collinearity is that it happens when one variable does not add any new information to another variable.
+
+# Beware of the Dummy Variable Trap! 
+
+>- All information contained in `LowEL` is already included in `HiEL` (they are the same variable, just coded differently). So, we do not need both of them in the model. 
+
+>- Adding both versions of the same dummy variables is dramatically referred to as a **dummy variable trap**
+
+# Beware of the Dummy Variable Trap! 
+
+\textcolor{red}{Dummy variable trap} is not so scarry. In fact, R simply won't let you add both of the variables into the model and will automatically drop one of them: 
+
+```{r}
+lm(score ~ LowEL + HiEL+ STR, data = CASchools)
+```
+
+\textcolor{red}{Thanks, R!}
+
+
+
+
