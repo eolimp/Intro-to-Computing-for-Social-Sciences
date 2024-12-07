@@ -1,0 +1,169 @@
+---
+title: "Solutions to OLS Extensions - Categorical Variables and Interaction Effects"
+author: "Social Sciences Inquiry II"
+date: "2/25/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+*Start by opening the College Scorecard data and doing general cleaning, which you should be able to take most of from previous files.  We will be using the following variables: control, median debt, median family income, total cost, percent pell, percent federal loan, admission rate, SAT average, average faculty salary (avgfacsal), and the number of undergrads (ugds).*
+
+```{r}
+library(haven)
+CSdata <- read_dta("CollegeScorecard1415_forR.dta")
+
+```
+
+
+```{R}
+
+#loading the data
+data <- read_dta("CollegeScorecard1415_forR.dta")
+
+#cleaning the necessary variables
+CSdata <- data %>%
+  mutate(adm_rate = as.numeric(adm_rate)) %>%
+  mutate(costt4_a = as.numeric(costt4_a))%>%
+  mutate(avgfacsal = as.numeric(avgfacsal)) %>%
+  mutate(debt_mdn = as.numeric(debt_mdn)) %>%
+  mutate(md_faminc = as.numeric(md_faminc)) %>%
+  mutate(pctpell = as.numeric(pctpell))%>%
+  mutate(pctfloan = as.numeric(pctfloan)) %>%
+  mutate(sat_avg = as.numeric(sat_avg)) %>%
+  mutate(ugds = as.numeric(ugds)) %>%
+  filter(!is.na(costt4_a)) %>%
+  filter(!is.na(adm_rate)) %>%
+  filter(!is.na(debt_mdn)) %>%
+  filter(!is.na(md_faminc)) %>%
+  filter(!is.na(pctpell)) %>%
+  filter(!is.na(pctfloan)) %>%
+  filter(!is.na(sat_avg)) %>%
+  filter(!is.na(ugds))  %>%
+  filter(!is.na(avgfacsal))
+
+```
+
+# Categorical Variables
+
+*If we want to include the variable `control` (for the type of school) in the model, we need to create a series of dummy variables, since we cannot include a categorical variable in a regression model.  Start by creating three dummies: public  non-profit (conrol =1), private non-profit (conrol =2), and private for-profit (conrol =3).  We have created these before, so feel free to copy-paste the code or practice creating them in `dplyr`*
+
+```{r}
+
+CSdata$public <- ifelse(CSdata$control == 1, 1, 0)
+CSdata$private_np <- ifelse(CSdata$control == 2, 1, 0)
+CSdata$private_fp <- ifelse(CSdata$control == 3, 1, 0)
+
+```
+
+*Now try running a regression with median debt as the dependent variable, and public, private non-profit, median family income, total cost, percent pell and percent federal loans as the independent variables.*
+
+```{r}
+mod <- lm(debt_mdn~public +private_np + md_faminc + costt4_a+pctpell + pctfloan, data = CSdata)
+summary(mod)
+```
+
+
+*Next, try adding in the private for-profit variable.  What happens?  Why?*
+
+```{r}
+mod1 <- lm(debt_mdn~public+private_np +private_fp + md_faminc + costt4_a+pctpell + pctfloan, data = CSdata)
+summary(mod)
+```
+
+```{r}
+#we should not include all dummies! dropping public_fp
+
+mod1 <- lm(debt_mdn~public+private_np + md_faminc + costt4_a+pctpell + pctfloan, data = CSdata)
+
+```
+
+
+*Try removing public, but leaving private for-profit in the model.  How does this model compare to the previous one? Put the two models next to each other in a stargazer table. To be able to see the results in R without knitting, set an argument `type="text` inside the stargazer function. Convince yourself that these are identical models.*
+
+```{r}
+mod2 <- lm(debt_mdn~private_np +private_fp + md_faminc + costt4_a+pctpell + pctfloan, data = CSdata)
+summary(mod)
+```
+
+```{r}
+stargazer(mod1, mod2, type="text")
+```
+
+
+*What is the predicted median debt for all three types of schools, when all other variables are at 0?*
+
+Public: 3041.996 + 125.007 = 3167.003 
+
+Private FP:  125
+
+Private NP:  3167 -2626 = 125 +  416 = 541
+
+
+*Is the predicted slope the same for all three types of schools across the two models?*
+
+yes 
+
+
+# Interaction Terms
+
+*Create a new "private" dummy variable, that includes both non-profit and for-profit private schools as 1, and public schools as 0.*
+
+```{r}
+CSdata$private <-  ifelse(CSdata$control == 1, 0, 1)
+```
+
+
+*Recode admission rate so that it ranges from 0-100, rather than 0 to 1.* 
+
+```{r}
+CSdata$adm_rate <-  CSdata$adm_rate*100
+CSdata$adm_rate[1:20] #checking work
+```
+
+*First run an additive model, using cost as the dependent variable, and private, SAT average, admission rate, average faculty salaries, and the number of undergradates as independent variables.*
+
+```{r}
+mod3 <- lm(debt_mdn~private + sat_avg +adm_rate+ costt4_a+avgfacsal+ugds, data = CSdata)
+stargazer(mod3, type="text")
+```
+
+
+*How would you interpret the results for private and SAT average?*
+
+For each additional percentage point in SAT average, student debt decreases by one unit. 
+
+*Next, we will include into our model an interaction term to denote private school SAT averages, which you get by multiplying the private variable and SAT averages. Before we include it, what would you expect to happen with this interaction term?*
+
+*Now run the interactive model.  It should be the same as the additive model, but add the private school-SAT average interaction variable in.*
+
+```{r}
+mod4 <- lm(debt_mdn~private + sat_avg +adm_rate+ costt4_a+avgfacsal+ugds + private*sat_avg, data = CSdata)
+stargazer(mod4, type="text")
+```
+
+
+*Put them both in the same stargazer table, so that you can compare the results side by side.  Just use `stargazer(model1, model2)` or whatever the names of your models are*
+
+```{r}
+stargazer(mod3, mod4, type="text")
+```
+
+
+
+
+*How would you interpret the results of the interactive model?  What do they mean?  How is it different from the additive model?*
+
+*In LaTeX math mode, try writing out the rergression equation for private schools, substituting in the coefficients and variable names.  (For examples, see the first few slides of the interactive hypotheses section and the final output on the slide with the graph of both regression lines.)*
+
+$$\hat{\text{Median Debt}_{Private}} = (4,067 + 7,550) + (2.7-9.8)*\text{SAT Avg} + 37*\text{Adm Rate} + 0.29 *\text{Cost} + 0.013 * \text{Faculty Sal} - 0.015 \text{Undergrads} $$
+*Now write the same equation but for public schools.*
+
+$$\hat{\text{Median Debt}_{Public}} = 4,067 + 2.7*\text{SAT Avg} + 37*\text{Adm Rate} + 0.29 *\text{Cost} + 0.013 * \text{Faculty Sal} - 0.015* \text{Undergrads} $$
+
+*Are SAT scores a statistically significant predictor of median debt for private colleges? what about for public? *
+
+Yes, No. 
+
